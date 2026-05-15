@@ -1,10 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\BookController;
-use App\Http\Controllers\AnnouncementController;
-use App\Http\Controllers\DictionaryController;
-use App\Http\Controllers\TaskController;
+use App\Http\Controllers\API\BookController;
+use App\Http\Controllers\API\AnnouncementController;
+use App\Http\Controllers\API\DictionaryController;
+use App\Http\Controllers\API\TaskController;
 
 // 1. Book Service (Local Search)
 Route::get('/books/search', [BookController::class, 'search']);

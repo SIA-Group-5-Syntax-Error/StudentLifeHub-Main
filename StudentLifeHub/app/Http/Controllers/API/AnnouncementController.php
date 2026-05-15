@@ -1,77 +1,141 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\API;
 
-use App\Services\Gateway\RemoteGateway;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Symfony\Component\HttpFoundation\Response;
+use App\Models\Announcement; // Ensure you have an Announcement model in this project
 
 class AnnouncementController extends Controller
 {
-    public function __construct(
-        private RemoteGateway $gateway,
-    ) {}
+    /**
+     * GET /api/announcements
+     * Acting as a local proxy: returns all announcements.
+     */
+    public function index()
+    {
+        try {
+            $announcements = Announcement::all();
+            return response()->json($announcements, 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Internal Proxy Error: Failed to retrieve announcements.',
+                'error_details' => $e->getMessage()
+            ], 500);
+        }
+    }
 
     /**
-     * Display a listing of announcements (Formatted for API).
+     * POST /api/announcements
+     * Acting as a local proxy: validates and saves an announcement.
      */
-    public function index(): JsonResponse
+    public function store(Request $request)
     {
-        $upstream = $this->gateway->resource('announcements', 'GET', '');
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'content' => 'required|string',
+        ]);
 
-        if ($upstream->getStatusCode() >= 400) {
-            return response()->json(['error' => 'Could not load announcements.'], $upstream->getStatusCode());
+        try {
+            $announcement = Announcement::create($validated);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Announcement added successfully via proxy',
+                'data' => $announcement
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Internal Proxy Error: Failed to create announcement.',
+                'error_details' => $e->getMessage()
+            ], 500);
         }
-
-        $data = json_decode($upstream->getContent(), true);
-        
-        // Ensure data is an array
-        $rows = is_array($data) ? (array_is_list($data) ? $data : [$data]) : [];
-
-        // Format the data consistently
-        $announcements = array_map(static function (array $row): array {
-            $ts = $row['date'] ?? null;
-            return [
-                'title'   => $row['title'] ?? 'No Title',
-                'date'    => is_numeric($ts) ? date('Y-m-d H:i', (int) $ts) : (string) $ts,
-                'content' => $row['content'] ?? $row['description'] ?? '',
-            ];
-        }, $rows);
-
-        return response()->json([
-            'status' => 'success',
-            'data'   => $announcements
-        ]);
     }
 
-    public function show(string $id): Response
+    /**
+     * GET /api/announcements/{id}
+     * Acting as a local proxy: fetches a specific record.
+     */
+    public function show($id)
     {
-        return $this->gateway->resource('announcements', 'GET', $id);
+        try {
+            $announcement = Announcement::find($id);
+
+            if (!$announcement) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Announcement not found.'
+                ], 404);
+            }
+
+            return response()->json($announcement, 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'error_details' => $e->getMessage()
+            ], 500);
+        }
     }
 
-    public function store(Request $request): Response
+    /**
+     * PUT/PATCH /api/announcements/{id}
+     * Acting as a local proxy: updates a record.
+     */
+    public function update(Request $request, $id)
     {
-        $request->validate(['title' => 'required']);
+        try {
+            $announcement = Announcement::find($id);
 
-        return $this->gateway->resource('announcements', 'POST', '', [
-            'title' => $request->title,
-            'content' => $request->content // added content field
-        ]);
+            if (!$announcement) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Announcement not found.'
+                ], 404);
+            }
+
+            $announcement->update($request->all());
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Announcement updated successfully',
+                'data' => $announcement
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'error_details' => $e->getMessage()
+            ], 500);
+        }
     }
 
-    public function update(Request $request, string $id): Response
+    /**
+     * DELETE /api/announcements/{id}
+     * Acting as a local proxy: deletes a record.
+     */
+    public function destroy($id)
     {
-        $verb = $request->isMethod('patch') ? 'PATCH' : 'PUT';
+        try {
+            $announcement = Announcement::find($id);
 
-        return $this->gateway->resource('announcements', $verb, $id, [
-            'title' => $request->input('title'),
-            'content' => $request->input('content'),
-        ]);
-    }
+            if (!$announcement) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Announcement not found.'
+                ], 404);
+            }
 
-    public function destroy(string $id): Response
-    {
-        return $this->gateway->resource('announcements', 'DELETE', $id);
+            $announcement->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Announcement deleted successfully'
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'error_details' => $e->getMessage()
+            ], 500);
+        }
     }
 }
