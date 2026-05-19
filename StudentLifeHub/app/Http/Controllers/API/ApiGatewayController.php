@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\API; // Changed to match the API folder!
+namespace App\Http\Controllers\API;
 
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\HttpFoundation\Response;

@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('announcements', function (Blueprint $table) {
             $table->id();
-            $table->string('title');      // Added for the announcement title
-            $table->text('content');      // Added for the announcement body text
+            $table->string('title');     
+            $table->text('content');      
             $table->timestamps();
         });
     }

@@ -1,30 +1,51 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\API\BookController;
 use App\Http\Controllers\API\AnnouncementController;
 use App\Http\Controllers\API\DictionaryController;
 use App\Http\Controllers\API\TaskController;
+use App\Http\Middleware\ChangeApiKeyProtection;
 
-// 1. Book Service (Local Search)
-Route::get('/books/search', [BookController::class, 'search']);
+Route::middleware([ChangeApiKeyProtection::class])->group(function () {
 
-// 2. Announcement Service (Proxying via RemoteGateway)
-Route::prefix('announcements')->group(function () {
-    Route::get('/', [AnnouncementController::class, 'index']); // Changed from apiAnnouncements to index
-    Route::get('/{id}', [AnnouncementController::class, 'show']);
-    Route::post('/', [AnnouncementController::class, 'store']);
-    Route::match(['put', 'patch'], '/{id}', [AnnouncementController::class, 'update']);
-    Route::delete('/{id}', [AnnouncementController::class, 'destroy']);
-});
+    Route::get('/books/search', [BookController::class, 'search']);
 
-// 3. Dictionary Service (External API Proxy)
-Route::get('/dictionary/search', [DictionaryController::class, 'search']);
+    Route::get('/dictionary/search', [DictionaryController::class, 'search']);
 
-// 4. Todo/Task Service (MockAPI Proxy)
-Route::prefix('tasks')->group(function () {
-    Route::get('/', [TaskController::class, 'index']);
-    Route::post('/', [TaskController::class, 'store']);
-    Route::put('/{id}', [TaskController::class, 'update']);
-    Route::delete('/{id}', [TaskController::class, 'destroy']);
+    Route::prefix('announcements')->group(function () {
+        Route::get('/', [AnnouncementController::class, 'index']); 
+        Route::get('/{id}', [AnnouncementController::class, 'show']);
+        Route::post('/', [AnnouncementController::class, 'store']);
+        Route::match(['put', 'patch'], '/{id}', [AnnouncementController::class, 'update']);
+        Route::delete('/{id}', [AnnouncementController::class, 'destroy']);
+    });
+
+    Route::prefix('tasks')->group(function () {
+        Route::get('/', [TaskController::class, 'index']);
+        Route::post('/', [TaskController::class, 'store']);
+        Route::put('/{id}', [TaskController::class, 'update']);
+        Route::delete('/{id}', [TaskController::class, 'destroy']);
+    });
+
+    Route::get('/schedule/{day}', function ($day) {
+        $response = Http::get('https://6a07932ffa9b27c848fa2d18.mockapi.io/Schedule');
+
+        if ($response->failed()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reach upstream external mock data system layer provider.'
+            ], 502);
+        }
+
+        $schedules = collect($response->json());
+
+        $filtered = $schedules->filter(function ($item) use ($day) {
+            return strtolower($item['day']) == strtolower($day);
+        });
+
+        return response()->json($filtered->values());
+    });
+
 });
