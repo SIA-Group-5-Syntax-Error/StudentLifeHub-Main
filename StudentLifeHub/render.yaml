@@ -1,10 +1,12 @@
 services:
   - type: web
     name: student-life-hub-api
-    env: php
+    runtime: php            
     plan: free
-    buildCommand: composer install --no-dev --optimize-autoloader
-    startCommand: apache2-foreground
+    buildCommand: |
+      cd StudentLifeHub && composer install --no-dev --optimize-autoloader
+    startCommand: |
+      cd StudentLifeHub && apache2-foreground
     envVars:
       - key: APP_ENV
         value: production
