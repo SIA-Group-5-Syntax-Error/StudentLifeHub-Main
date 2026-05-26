@@ -9,7 +9,7 @@ use App\Http\Controllers\Services\API\TaskController;
 use App\Http\Controllers\Services\API\AuthController;
 use App\Http\Middleware\ChangeApiKeyProtection;
 
-// 🌟 Added outside the middleware group so you can actually log in and get your token!
+// 🌟 Public Login Endpoint
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware([ChangeApiKeyProtection::class])->group(function () {
@@ -37,7 +37,12 @@ Route::middleware([ChangeApiKeyProtection::class])->group(function () {
         Route::delete('/{id}', [TaskController::class, 'destroy']);
     });
 
-    // 📦 MODULE E: Class Schedule Service (MockAPI Web Service Proxy & In-Memory Filter)
+    // 📦 MODULE E: Class Schedule Service (MockAPI Web Service Proxy & Bulletproof Filter)
+    Route::get('/schedule', function () {
+        $response = Http::get('https://6a07932ffa9b27c848fa2d18.mockapi.io/Schedule');
+        return response()->json($response->json());
+    });
+
     Route::get('/schedule/{day}', function ($day) {
         $response = Http::get('https://6a07932ffa9b27c848fa2d18.mockapi.io/Schedule');
 
@@ -48,13 +53,28 @@ Route::middleware([ChangeApiKeyProtection::class])->group(function () {
             ], 502);
         }
 
-        $schedules = collect($response->json());
+        $rawData = $response->json();
+        $schedules = collect($rawData);
 
         $filtered = $schedules->filter(function ($item) use ($day) {
-            return strtolower($item['day']) == strtolower($day);
+            $dbDay = $item['Day'] ?? $item['day'] ?? null;
+
+            if (is_null($dbDay)) {
+                return false;
+            }
+
+            return trim(strtolower($dbDay)) === trim(strtolower($day));
         });
+
+        if ($filtered->isEmpty() && !empty($rawData)) {
+            return response()->json([
+                'error' => "No match found for your query: '{$day}'",
+                'solution' => "Check the spelling below. You must type it exactly as it appears in the raw data.",
+                'raw_data_sample_from_mockapi' => array_slice($rawData, 0, 3)
+            ], 200, [], JSON_PRETTY_PRINT);
+        }
 
         return response()->json($filtered->values());
     });
 
-});
+}); 
