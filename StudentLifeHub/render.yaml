@@ -1,8 +1,9 @@
 services:
   - type: web
     name: student-life-hub-api
-    runtime: docker                                                                             
+    runtime: docker
     plan: free
+    dockerContext: StudentLifeHub  
     envVars:
       - key: APP_ENV
         value: production
