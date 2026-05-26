@@ -9,9 +9,25 @@ use App\Http\Controllers\Services\API\TaskController;
 use App\Http\Controllers\Services\API\AuthController;
 use App\Http\Middleware\ChangeApiKeyProtection;
 
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+*/
+
+// ✅ Temporary Connection Test Endpoint (Bypasses Middleware)
+Route::get('/test', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'Your Render API deployment is alive and working perfectly!',
+        'timestamp' => now()->toDateTimeString()
+    ]);
+});
+
 // 🌟 Public Login Endpoint
 Route::post('/login', [AuthController::class, 'login']);
 
+// 🔒 Protected Gateway API Route Group
 Route::middleware([ChangeApiKeyProtection::class])->group(function () {
 
     // 📦 MODULE A: Book Service (Local Search Engine Subsystem)
@@ -77,4 +93,4 @@ Route::middleware([ChangeApiKeyProtection::class])->group(function () {
         return response()->json($filtered->values());
     });
 
-}); 
+});
